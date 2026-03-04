@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  HOSPITAL_ADMIN
+  STAFF
+}
+
+enum SubscriptionPlan {
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+model User {
+  id            String    @id @default(uuid())
+  full_name     String
+  email         String    @unique
+  password_hash String
+  role          Role      @default(STAFF)
+  hospital_id   String?
+  hospital      Hospital? @relation(fields: [hospital_id], references: [id])
+  status        String    @default("ACTIVE")
+  last_login    DateTime?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  @@index([hospital_id])
+}
+
+model Hospital {
+  id                  String             @id @default(uuid())
+  name                String
+  registration_number String             @unique
+  address            String
+  city                String
+  state               String
+  latitude            Float?
+  longitude           Float?
+  contact_number      String
+  subscription_plan   SubscriptionPlan   @default(BASIC)
+  subscription_status SubscriptionStatus @default(PENDING)
+  created_at          DateTime           @default(now())
+  updated_at          DateTime           @updatedAt
+
+  users               User[]
+  beds                BedAvailability?
+  oxygen              OxygenInventory?
+  blood               BloodInventory[]
+}
+
+model BedAvailability {
+  id                   String   @id @default(uuid())
+  hospital_id          String   @unique
+  hospital             Hospital @relation(fields: [hospital_id], references: [id])
+  total_general        Int      @default(0)
+  available_general    Int      @default(0)
+  total_icu            Int      @default(0)
+  available_icu        Int      @default(0)
+  total_ventilator     Int      @default(0)
+  available_ventilator Int      @default(0)
+  last_updated        DateTime @default(now())
+  updated_by           String?
+
+  @@index([hospital_id])
+}
+
+model OxygenInventory {
+  id                  String   @id @default(uuid())
+  hospital_id         String   @unique
+  hospital            Hospital @relation(fields: [hospital_id], references: [id])
+  cylinders_available Int      @default(0)
+  pipeline_status     Boolean  @default(true)
+  last_updated        DateTime @default(now())
+  updated_by           String?
+
+  @@index([hospital_id])
+}
+
+model BloodInventory {
+  id              String   @id @default(uuid())
+  hospital_id     String
+  hospital        Hospital @relation(fields: [hospital_id], references: [id])
+  blood_group     String
+  units_available Int      @default(0)
+  last_updated    DateTime @default(now())
+  updated_by       String?
+
+  @@unique([hospital_id, blood_group])
+  @@index([hospital_id])
+  @@index([blood_group])
+}
+
+model AIChatHistory {
+  id              String   @id @default(uuid())
+  user_session_id String
+  message         String
+  response        String
+  timestamp       DateTime @default(now())
+
+  @@index([user_session_id])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  user_id     String
+  action      String
+  entity      String
+  entity_id   String
+  details     Json?
+  timestamp   DateTime @default(now())
+
+  @@index([user_id])
+}
