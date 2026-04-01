@@ -5,10 +5,13 @@ import { Bed, Wind, Droplets, MapPin, Phone, ExternalLink, ShieldCheck, Navigati
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
-interface Hospital {
+export interface Hospital {
     id: string;
     name: string;
     address: string;
+    city: string;
+    lat: number;
+    lng: number;
     distance: string;
     distanceKm: number;
     contact: string;

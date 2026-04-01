@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Mail, Phone, MapPin, Send, MessageSquare, Clock, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { supabase } from "@/lib/supabase";
 
 export default function ContactPage() {
     const [formData, setFormData] = useState({
@@ -12,9 +13,32 @@ export default function ContactPage() {
         message: "",
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        alert("Message sent! Our team will get back to you shortly.");
+        setIsSubmitting(true);
+
+        try {
+            const { error } = await supabase
+                .from('contacts')
+                .insert([{ 
+                    name: formData.name, 
+                    email: formData.email, 
+                    hospital: formData.hospital, 
+                    message: formData.message 
+                }]);
+
+            if (error) throw error;
+
+            alert("Message sent! Our team will get back to you shortly.");
+            setFormData({ name: "", email: "", hospital: "", message: "" });
+        } catch (error: any) {
+            console.error("Error submitting contact form:", error.message);
+            alert("Oops! Failed to send message. Please try again.");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -126,10 +150,17 @@ export default function ContactPage() {
 
                                 <button
                                     type="submit"
-                                    className="w-full py-5 bg-primary text-white rounded-2xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                    disabled={isSubmitting}
+                                    className="w-full py-5 bg-primary text-white rounded-2xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    <Send className="w-5 h-5" />
-                                    Send Message
+                                    {isSubmitting ? (
+                                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <>
+                                            <Send className="w-5 h-5" />
+                                            Send Message
+                                        </>
+                                    )}
                                 </button>
                             </form>
                         </motion.div>

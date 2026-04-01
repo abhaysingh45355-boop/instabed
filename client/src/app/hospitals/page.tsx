@@ -2,14 +2,17 @@
 
 import React, { useState, useMemo } from "react";
 import { Search, MapPin, Filter, List, Grid2X2, Compass, X } from "lucide-react";
-import HospitalCardComponent from "@/components/HospitalCard";
+import HospitalCardComponent, { Hospital } from "@/components/HospitalCard";
 import { cn } from "@/lib/utils";
 
-const mockHospitals = [
+const mockHospitals: Hospital[] = [
     {
         id: "1",
         name: "City Care Super Specialty",
         address: "Block B, Greater Kailash, New Delhi",
+        city: "New Delhi",
+        lat: 28.5482,
+        lng: 77.2341,
         distance: "2.4 km",
         distanceKm: 2.4,
         contact: "+91 9876543210",
@@ -26,6 +29,9 @@ const mockHospitals = [
         id: "2",
         name: "St. Mary Medical Center",
         address: "Saket Institutional Area, New Delhi",
+        city: "New Delhi",
+        lat: 28.5245,
+        lng: 77.2100,
         distance: "4.1 km",
         distanceKm: 4.1,
         contact: "+91 8876543211",
@@ -42,6 +48,9 @@ const mockHospitals = [
         id: "3",
         name: "Apollo Multispecialty",
         address: "Jasola Vihar, New Delhi",
+        city: "New Delhi",
+        lat: 28.5367,
+        lng: 77.2842,
         distance: "5.8 km",
         distanceKm: 5.8,
         contact: "+91 7776543212",
@@ -58,6 +67,9 @@ const mockHospitals = [
         id: "4",
         name: "Metro Hospital & Heart Inst.",
         address: "Lajpat Nagar, New Delhi",
+        city: "New Delhi",
+        lat: 28.5672,
+        lng: 77.2435,
         distance: "1.2 km",
         distanceKm: 1.2,
         contact: "+91 6676543213",
@@ -74,6 +86,9 @@ const mockHospitals = [
         id: "5",
         name: "Fortis Heart & Vascular Inst.",
         address: "Okhla, New Delhi",
+        city: "New Delhi",
+        lat: 28.5574,
+        lng: 77.2831,
         distance: "6.5 km",
         distanceKm: 6.5,
         contact: "+91 9988776655",
@@ -90,6 +105,9 @@ const mockHospitals = [
         id: "6",
         name: "Max Super Specialty Hospital",
         address: "Saket, New Delhi",
+        city: "New Delhi",
+        lat: 28.5283,
+        lng: 77.2185,
         distance: "3.7 km",
         distanceKm: 3.7,
         contact: "+91 8877665544",
@@ -106,6 +124,9 @@ const mockHospitals = [
         id: "7",
         name: "Lilavati Hospital & Research Centre",
         address: "Bandra West, Mumbai",
+        city: "Mumbai",
+        lat: 19.0514,
+        lng: 72.8258,
         distance: "2.1 km",
         distanceKm: 2.1,
         contact: "+91 2226751000",
@@ -122,6 +143,9 @@ const mockHospitals = [
         id: "8",
         name: "Narayana Health City",
         address: "Bommasandra Industrial Area, Bangalore",
+        city: "Bangalore",
+        lat: 12.8267,
+        lng: 77.6833,
         distance: "12.4 km",
         distanceKm: 12.4,
         contact: "+91 8027832000",
@@ -138,6 +162,9 @@ const mockHospitals = [
         id: "9",
         name: "KIMS Hospital",
         address: "Minister Road, Secunderabad, Hyderabad",
+        city: "Hyderabad",
+        lat: 17.4334,
+        lng: 78.4866,
         distance: "4.8 km",
         distanceKm: 4.8,
         contact: "+91 4044885000",
@@ -154,6 +181,9 @@ const mockHospitals = [
         id: "10",
         name: "Medica Superspecialty Hospital",
         address: "Mukundapur, Kolkata",
+        city: "Kolkata",
+        lat: 22.4848,
+        lng: 88.4014,
         distance: "8.2 km",
         distanceKm: 8.2,
         contact: "+91 3366520000",
@@ -170,6 +200,9 @@ const mockHospitals = [
         id: "11",
         name: "Ruby Hall Clinic",
         address: "Sassoon Road, Pune",
+        city: "Pune",
+        lat: 18.5302,
+        lng: 73.8753,
         distance: "3.5 km",
         distanceKm: 3.5,
         contact: "+91 2026163391",
@@ -186,6 +219,9 @@ const mockHospitals = [
         id: "12",
         name: "PGIMER",
         address: "Sector 12, Chandigarh",
+        city: "Chandigarh",
+        lat: 30.7672,
+        lng: 76.7766,
         distance: "5.1 km",
         distanceKm: 5.1,
         contact: "+91 1722746018",
@@ -200,12 +236,37 @@ const mockHospitals = [
     },
 ];
 
+
+// Haversine formula to calculate distance between two coordinates
+function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371; // Radius of the earth in km
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in km
+}
+
+function deg2rad(deg: number) {
+    return deg * (Math.PI / 180);
+}
+
+
 export default function HospitalsPage() {
     const [search, setSearch] = useState("");
     const [view, setView] = useState("grid");
     const [locationFetching, setLocationFetching] = useState(false);
     const [locationStatus, setLocationStatus] = useState("");
     const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+    // Filter states
+    const [userCoords, setUserCoords] = useState<{ lat: number, lng: number } | null>(null);
+    const [widerRange, setWiderRange] = useState(false);
+    const [externalHospitals, setExternalHospitals] = useState<Hospital[]>([]);
+    const [isFetchingExternal, setIsFetchingExternal] = useState(false);
 
     // Filter states
     const [filters, setFilters] = useState({
@@ -218,7 +279,7 @@ export default function HospitalsPage() {
     const [maxDistance, setMaxDistance] = useState(50);
 
     // Selected hospital for detail modal
-    const [selectedHospital, setSelectedHospital] = useState<typeof mockHospitals[0] | null>(null);
+    const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
 
     const handleLocationClick = () => {
         if (!navigator.geolocation) {
@@ -228,13 +289,32 @@ export default function HospitalsPage() {
         setLocationFetching(true);
         setLocationStatus("");
         navigator.geolocation.getCurrentPosition(
-            (pos) => {
+            async (pos) => {
+                const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                setUserCoords(coords);
                 setLocationFetching(false);
-                setLocationStatus(`📍 ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+                setLocationStatus(`📍 Located. Fetching nearby hospitals...`);
+                
+                // Fetch from Google Places API via our proxy
+                setIsFetchingExternal(true);
+                try {
+                    const radius = maxDistance * 1000; // convert km to meters
+                    const response = await fetch(`/api/google/places?lat=${coords.lat}&lng=${coords.lng}&radius=${radius}`);
+                    const data = await response.json();
+                    if (Array.isArray(data)) {
+                        setExternalHospitals(data);
+                        setLocationStatus(`📍 Successfully found ${data.length} hospitals nearby!`);
+                    }
+                } catch (err) {
+                    console.error("External fetch failed:", err);
+                    setLocationStatus("📍 Located, but failed to fetch live data. Using local records.");
+                } finally {
+                    setIsFetchingExternal(false);
+                }
             },
             (err) => {
                 setLocationFetching(false);
-                setLocationStatus("Location access denied");
+                setLocationStatus("Location access denied. Using default distances.");
             },
             { enableHighAccuracy: true }
         );
@@ -251,16 +331,37 @@ export default function HospitalsPage() {
         setSearch("");
     };
 
-    // Filtered hospitals
+    // Filtered and Sorted hospitals
     const filteredHospitals = useMemo(() => {
-        return mockHospitals.filter((h) => {
+        const combinedBase = [...mockHospitals, ...externalHospitals];
+        
+        const hospitalsWithRealDist = combinedBase.map(h => {
+            if (userCoords) {
+                const dist = getDistanceFromLatLonInKm(userCoords.lat, userCoords.lng, h.lat, h.lng);
+                return { ...h, distanceKm: dist, distance: `${dist.toFixed(1)} km` };
+            }
+            return h;
+        });
+
+        let filtered = hospitalsWithRealDist.filter((h) => {
             // Search filter
             if (search) {
                 const q = search.toLowerCase();
-                if (!h.name.toLowerCase().includes(q) && !h.address.toLowerCase().includes(q)) {
+                if (!h.name.toLowerCase().includes(q) && !h.address.toLowerCase().includes(q) && !h.city.toLowerCase().includes(q)) {
                     return false;
                 }
             }
+            
+            // City-level "Wider Range" logic
+            // If search is a city name and widerRange is true, we show all in that city regardless of distance
+            const isCitySearch = search && mockHospitals.some(mh => mh.city.toLowerCase() === search.toLowerCase());
+            if (isCitySearch && widerRange && h.city.toLowerCase() === search.toLowerCase()) {
+                // Skip distance filter if it's a city search with wider range
+            } else {
+                // Distance filter
+                if (h.distanceKm > maxDistance) return false;
+            }
+
             // Availability filters
             if (filters.generalBeds && h.beds.general.available === 0) return false;
             if (filters.icuBeds && h.beds.icu.available === 0) return false;
@@ -268,12 +369,17 @@ export default function HospitalsPage() {
             if (filters.oxygen && !h.oxygen) return false;
             // Blood group filter
             if (bloodGroup && !h.blood.includes(bloodGroup)) return false;
-            // Distance filter
-            if (h.distanceKm > maxDistance) return false;
 
             return true;
         });
-    }, [search, filters, bloodGroup, maxDistance]);
+
+        // Sort by distance if location available
+        if (userCoords) {
+            filtered.sort((a, b) => a.distanceKm - b.distanceKm);
+        }
+
+        return filtered;
+    }, [search, filters, bloodGroup, maxDistance, userCoords, widerRange]);
 
     const activeFilterCount = Object.values(filters).filter(Boolean).length + (bloodGroup ? 1 : 0) + (maxDistance < 50 ? 1 : 0);
 
@@ -320,20 +426,39 @@ export default function HospitalsPage() {
             {/* Distance Slider */}
             <div>
                 <p className="text-sm font-bold text-text-dark mb-3">
-                    Distance: <span className="text-primary">{maxDistance} km</span>
+                    Search Radius: <span className="text-primary">{maxDistance} km</span>
                 </p>
                 <input
                     type="range"
                     className="w-full accent-primary"
                     min="1"
-                    max="50"
+                    max="500"
                     value={maxDistance}
                     onChange={(e) => setMaxDistance(Number(e.target.value))}
                 />
                 <div className="flex justify-between text-[10px] text-text-gray mt-2 font-medium">
                     <span>1 km</span>
-                    <span>50 km</span>
+                    <span>500 km</span>
                 </div>
+            </div>
+
+            {/* Wider Range Toggle */}
+            <div className="pt-4 border-t border-slate-100">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            className="sr-only peer"
+                            checked={widerRange}
+                            onChange={() => setWiderRange(!widerRange)}
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </div>
+                    <div>
+                        <span className="text-sm font-bold text-text-dark group-hover:text-primary transition-colors">Wider Range</span>
+                        <p className="text-[10px] text-text-gray">Show all hospitals in the selected city</p>
+                    </div>
+                </label>
             </div>
         </div>
     );

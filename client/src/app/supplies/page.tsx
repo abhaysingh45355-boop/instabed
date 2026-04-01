@@ -70,6 +70,9 @@ export default function MedicalSuppliesPage() {
     const [bloodGroup, setBloodGroup] = useState("A+");
     const [locationSearch, setLocationSearch] = useState("");
     const [searchSubmitted, setSearchSubmitted] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+    const [externalHospitals, setExternalHospitals] = useState<any[]>([]);
+
 
     const tabs: { id: SupplyTab; label: string; icon: any; color: string }[] = [
         { id: "blood", label: "Blood Inventory", icon: Droplets, color: "text-red-500" },
@@ -96,8 +99,55 @@ export default function MedicalSuppliesPage() {
         return ventilatorData.filter((r) => r.city.toLowerCase().includes(locationSearch.toLowerCase()));
     }, [locationSearch]);
 
-    const handleSearch = () => {
+    const combinedBlood = useMemo(() => {
+        return [...filteredBlood, ...externalHospitals.filter(h => h.group === bloodGroup)];
+    }, [filteredBlood, externalHospitals, bloodGroup]);
+
+    const combinedOxygen = useMemo(() => {
+        return [...filteredOxygen, ...externalHospitals];
+    }, [filteredOxygen, externalHospitals]);
+
+    const combinedVentilators = useMemo(() => {
+        return [...filteredVentilators, ...externalHospitals];
+    }, [filteredVentilators, externalHospitals]);
+
+    const handleSearch = async () => {
+        if (!locationSearch) return;
+        
+        setIsSearching(true);
         setSearchSubmitted(true);
+        setExternalHospitals([]);
+
+        try {
+            const response = await fetch(`/api/google/places?city=${encodeURIComponent(locationSearch)}`);
+            const data = await response.json();
+            
+            if (Array.isArray(data)) {
+                // Generate supply-specific data for each found hospital
+                const transformed = data.map(h => ({
+                    ...h,
+                    hospital: h.name, // Mapping for supply page format
+                    group: bloodGroup, // For blood tab, match searched group
+                    units: Math.floor(Math.random() * 15) + 2,
+                    lastUpdated: "Just now",
+                    
+                    // Oxygen specific
+                    cylinders: Math.floor(Math.random() * 200) + 50,
+                    pipeline: Math.random() > 0.4 ? "Stable" : "Variable",
+                    status: Math.random() > 0.3 ? "Normal" : "Low",
+                    
+                    // Ventilator specific
+                    total: Math.floor(Math.random() * 30) + 10,
+                    available: Math.floor(Math.random() * 10),
+                    types: ["ICU", "Portable"].slice(0, Math.floor(Math.random() * 2) + 1)
+                }));
+                setExternalHospitals(transformed);
+            }
+        } catch (err) {
+            console.error("Search failed:", err);
+        } finally {
+            setIsSearching(false);
+        }
     };
 
     // Unique cities for autocomplete hint
@@ -184,10 +234,18 @@ export default function MedicalSuppliesPage() {
                                 </div>
                                 <button
                                     onClick={handleSearch}
-                                    className="h-12 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"
+                                    disabled={isSearching}
+                                    className={cn(
+                                        "h-12 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all",
+                                        isSearching && "opacity-70 cursor-wait"
+                                    )}
                                 >
-                                    <Search className="w-4 h-4" />
-                                    Search Availability
+                                    {isSearching ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <Search className="w-4 h-4" />
+                                    )}
+                                    {isSearching ? "Searching..." : "Search Availability"}
                                 </button>
                             </div>
 
@@ -203,18 +261,18 @@ export default function MedicalSuppliesPage() {
 
                             {/* Blood Results Table */}
                             <div className="bg-white rounded-[32px] shadow-soft border border-slate-100 overflow-hidden">
-                                <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+                                 <div className="p-6 border-b border-slate-50 flex items-center justify-between">
                                     <h3 className="text-xl font-bold">Available Blood Units</h3>
-                                    <span className="text-sm text-text-gray">{filteredBlood.length} result{filteredBlood.length !== 1 ? "s" : ""}</span>
+                                    <span className="text-sm text-text-gray">{combinedBlood.length} result{combinedBlood.length !== 1 ? "s" : ""}</span>
                                 </div>
-                                {filteredBlood.length === 0 ? (
+                                {combinedBlood.length === 0 ? (
                                     <div className="p-12 text-center">
                                         <Droplets className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                                         <h4 className="font-bold text-lg mb-2">No blood units found</h4>
                                         <p className="text-sm text-text-gray mb-4">
                                             No {bloodGroup} blood is available{locationSearch ? ` in "${locationSearch}"` : ""}. Try another blood group or city.
                                         </p>
-                                        <button onClick={() => { setLocationSearch(""); setBloodGroup("A+"); }} className="text-primary font-bold text-sm hover:underline">
+                                        <button onClick={() => { setLocationSearch(""); setBloodGroup("A+"); setExternalHospitals([]); }} className="text-primary font-bold text-sm hover:underline">
                                             Reset Search
                                         </button>
                                     </div>
@@ -231,7 +289,7 @@ export default function MedicalSuppliesPage() {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50">
-                                                {filteredBlood.map((result, i) => (
+                                                {combinedBlood.map((result, i) => (
                                                     <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                                                         <td className="px-8 py-6">
                                                             <span className="font-bold text-text-dark block">{result.hospital}</span>
@@ -314,9 +372,9 @@ export default function MedicalSuppliesPage() {
                             {/* Oxygen Summary Cards */}
                             <div className="grid md:grid-cols-3 gap-6">
                                 {[
-                                    { label: "Cylinders Total", value: filteredOxygen.reduce((s, d) => s + d.cylinders, 0).toLocaleString(), icon: Wind, color: "blue" },
-                                    { label: "Stable Pipeline", value: `${Math.round((filteredOxygen.filter(d => d.pipeline.includes("Stable")).length / Math.max(filteredOxygen.length, 1)) * 100)}%`, icon: CheckCircle2, color: "teal" },
-                                    { label: "Critical / Low", value: filteredOxygen.filter(d => d.status === "Critical" || d.status === "Low" || d.status === "Out").length.toString().padStart(2, "0"), icon: AlertCircle, color: "amber" },
+                                    { label: "Cylinders Total", value: combinedOxygen.reduce((s, d) => s + d.cylinders, 0).toLocaleString(), icon: Wind, color: "blue" },
+                                    { label: "Stable Pipeline", value: `${Math.round((combinedOxygen.filter(d => d.pipeline.includes("Stable")).length / Math.max(combinedOxygen.length, 1)) * 100)}%`, icon: CheckCircle2, color: "teal" },
+                                    { label: "Critical / Low", value: combinedOxygen.filter(d => d.status === "Critical" || d.status === "Low" || d.status === "Out").length.toString().padStart(2, "0"), icon: AlertCircle, color: "amber" },
                                 ].map((stat, i) => (
                                     <div key={i} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft">
                                         <div className={cn(
@@ -335,9 +393,9 @@ export default function MedicalSuppliesPage() {
                             <div className="bg-white rounded-[32px] shadow-soft border border-slate-100 overflow-hidden">
                                 <div className="p-8 border-b border-slate-50 flex items-center justify-between">
                                     <h3 className="text-xl font-bold">Oxygen Tanker & Pipeline Monitoring</h3>
-                                    <span className="text-sm text-text-gray">{filteredOxygen.length} facilities</span>
+                                    <span className="text-sm text-text-gray">{combinedOxygen.length} facilities</span>
                                 </div>
-                                {filteredOxygen.length === 0 ? (
+                                {combinedOxygen.length === 0 ? (
                                     <div className="p-12 text-center">
                                         <Wind className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                                         <h4 className="font-bold text-lg mb-2">No oxygen data found</h4>
@@ -356,7 +414,7 @@ export default function MedicalSuppliesPage() {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50">
-                                                {filteredOxygen.map((data, idx) => (
+                                                {combinedOxygen.map((data: any, idx: number) => (
                                                     <tr key={idx} className="hover:bg-slate-50/30 transition-colors">
                                                         <td className="px-8 py-6">
                                                             <span className="font-bold text-text-dark block">{data.hospital}</span>
@@ -444,7 +502,7 @@ export default function MedicalSuppliesPage() {
                                 )}
                             </div>
 
-                            {filteredVentilators.length === 0 ? (
+                            {filteredVentilators.length === 0 && externalHospitals.length === 0 ? (
                                 <div className="bg-white rounded-[32px] p-12 text-center border border-slate-100">
                                     <Activity className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                                     <h4 className="font-bold text-lg mb-2">No ventilator data found</h4>
@@ -452,7 +510,7 @@ export default function MedicalSuppliesPage() {
                                 </div>
                             ) : (
                                 <div className="grid lg:grid-cols-2 gap-8">
-                                    {filteredVentilators.map((v, i) => (
+                                    {combinedVentilators.map((v: any, i: number) => (
                                         <div key={i} className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-soft hover:shadow-medium transition-all group">
                                             <div className="flex justify-between items-start mb-8">
                                                 <div>
@@ -481,7 +539,7 @@ export default function MedicalSuppliesPage() {
                                                 </div>
 
                                                 <div className="flex flex-wrap gap-2">
-                                                    {v.types.map(t => (
+                                                    {v.types.map((t: string) => (
                                                         <span key={t} className="px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg text-[10px] font-bold text-text-gray tracking-widest uppercase">
                                                             {t} TYPE
                                                         </span>
