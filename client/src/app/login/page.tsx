@@ -3,18 +3,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Building2, Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight } from "lucide-react";
+import { Building2, Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight, AlertCircle } from "lucide-react";
 import Link from "next/link";
-
-// Demo credentials for hospitals
-const DEMO_HOSPITALS = [
-    { email: "admin@citycare.com", password: "hospital123", name: "City Care Super Specialty", id: "h1" },
-    { email: "admin@stmary.com", password: "hospital123", name: "St. Mary Medical Center", id: "h2" },
-    { email: "admin@apollo.com", password: "hospital123", name: "Apollo Multispecialty", id: "h3" },
-    { email: "admin@metro.com", password: "hospital123", name: "Metro Hospital & Heart Inst.", id: "h4" },
-    { email: "admin@fortis.com", password: "hospital123", name: "Fortis Heart & Vascular Inst.", id: "h5" },
-    { email: "admin@max.com", password: "hospital123", name: "Max Super Specialty Hospital", id: "h6" },
-];
 
 export default function HospitalLoginPage() {
     const router = useRouter();
@@ -29,26 +19,41 @@ export default function HospitalLoginPage() {
         setError("");
         setIsLoading(true);
 
-        // Simulate API call
-        await new Promise((r) => setTimeout(r, 1000));
+        try {
+            const res = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password }),
+            });
 
-        const hospital = DEMO_HOSPITALS.find(
-            (h) => h.email === email && h.password === password
-        );
+            const data = await res.json();
 
-        if (hospital) {
-            // Store auth in sessionStorage
-            sessionStorage.setItem("hospital-auth", JSON.stringify({
-                id: hospital.id,
-                name: hospital.name,
-                email: hospital.email,
-                loggedInAt: new Date().toISOString(),
-            }));
+            if (!res.ok) {
+                setError(data.error || "Login failed. Please check your credentials.");
+                setIsLoading(false);
+                return;
+            }
+
+            // Store auth data in sessionStorage
+            sessionStorage.setItem(
+                "hospital-auth",
+                JSON.stringify({
+                    token: data.token,
+                    id: data.user.hospitalId,
+                    name: data.user.hospitalName || data.user.name,
+                    email: data.user.email,
+                    userId: data.user.id,
+                    role: data.user.role,
+                    hospitalId: data.user.hospitalId,
+                    loggedInAt: new Date().toISOString(),
+                })
+            );
             router.push("/dashboard");
-        } else {
-            setError("Invalid email or password. Try one of the demo accounts below.");
+        } catch (err) {
+            setError("Network error. Please check your connection and try again.");
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     };
 
     return (
@@ -93,7 +98,15 @@ export default function HospitalLoginPage() {
 
                         {/* Password */}
                         <div>
-                            <label className="block text-sm font-bold text-text-dark mb-2">Password</label>
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="block text-sm font-bold text-text-dark">Password</label>
+                                <Link
+                                    href="/forgot-password"
+                                    className="text-xs font-semibold text-primary hover:text-blue-700 transition-colors"
+                                >
+                                    Forgot password?
+                                </Link>
+                            </div>
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-gray pointer-events-none" />
                                 <input
@@ -116,7 +129,8 @@ export default function HospitalLoginPage() {
 
                         {/* Error */}
                         {error && (
-                            <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-medium">
+                            <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-medium flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 flex-shrink-0" />
                                 {error}
                             </div>
                         )}
@@ -149,25 +163,22 @@ export default function HospitalLoginPage() {
                     </div>
                 </motion.div>
 
-                {/* Demo Credentials */}
+                {/* Demo Credentials Info */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                     className="mt-6 bg-blue-50/50 rounded-2xl p-5 border border-blue-100"
                 >
-                    <p className="text-xs font-bold text-primary mb-3 uppercase tracking-wider">Demo Accounts</p>
-                    <div className="space-y-2 max-h-[200px] overflow-auto">
-                        {DEMO_HOSPITALS.map((h) => (
-                            <button
-                                key={h.id}
-                                onClick={() => { setEmail(h.email); setPassword(h.password); setError(""); }}
-                                className="w-full text-left p-2.5 bg-white rounded-xl border border-blue-100 hover:border-primary/30 hover:shadow-sm transition-all text-xs group"
-                            >
-                                <p className="font-bold text-text-dark group-hover:text-primary transition-colors">{h.name}</p>
-                                <p className="text-text-gray mt-0.5">{h.email} / {h.password}</p>
-                            </button>
-                        ))}
+                    <p className="text-xs font-bold text-primary mb-2 uppercase tracking-wider">Demo Credentials</p>
+                    <p className="text-xs text-text-gray mb-3">Use any of the seeded admin accounts. Default password: <code className="bg-white px-1.5 py-0.5 rounded border border-blue-100 font-mono text-primary">hospital123</code></p>
+                    <div className="space-y-1.5 text-xs text-text-gray">
+                        <p><strong className="text-text-dark">City Care:</strong> admin@citycare.com</p>
+                        <p><strong className="text-text-dark">St. Mary:</strong> admin@stmary.com</p>
+                        <p><strong className="text-text-dark">Apollo:</strong> admin@apollo.com</p>
+                        <p><strong className="text-text-dark">Metro:</strong> admin@metro.com</p>
+                        <p><strong className="text-text-dark">Fortis:</strong> admin@fortis.com</p>
+                        <p><strong className="text-text-dark">Max:</strong> admin@max.com</p>
                     </div>
                 </motion.div>
 

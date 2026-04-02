@@ -23,6 +23,7 @@ export interface Hospital {
     oxygen: boolean;
     blood: string[];
     isVerified: boolean;
+    lastUpdated?: string;
 }
 
 interface HospitalCardProps {

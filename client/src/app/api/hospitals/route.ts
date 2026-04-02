@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
+import { FALLBACK_HOSPITALS } from '@/lib/fallback-data';
 
 export async function GET() {
   try {
@@ -12,6 +13,8 @@ export async function GET() {
     });
     return NextResponse.json(hospitals);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch hospitals' }, { status: 500 });
+    console.warn('[Instabed] Database unavailable, serving fallback hospital data.');
+    // Return fallback data when DB is not available
+    return NextResponse.json(FALLBACK_HOSPITALS);
   }
 }

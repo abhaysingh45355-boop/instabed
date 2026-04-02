@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { Mail, Phone, MapPin, Send, MessageSquare, Clock, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { supabase } from "@/lib/supabase";
 
 export default function ContactPage() {
     const [formData, setFormData] = useState({
@@ -20,16 +19,17 @@ export default function ContactPage() {
         setIsSubmitting(true);
 
         try {
-            const { error } = await supabase
-                .from('contacts')
-                .insert([{ 
-                    name: formData.name, 
-                    email: formData.email, 
-                    hospital: formData.hospital, 
-                    message: formData.message 
-                }]);
+            const res = await fetch('/api/contact', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
 
-            if (error) throw error;
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to send message');
+            }
 
             alert("Message sent! Our team will get back to you shortly.");
             setFormData({ name: "", email: "", hospital: "", message: "" });

@@ -1,19 +1,23 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
     Building2, LogOut, Bed, ShieldCheck, Wind, Droplets,
     Save, RefreshCw, Activity, TrendingUp, AlertTriangle,
-    CheckCircle2, Edit3, Plus, Minus
+    CheckCircle2, Plus, Minus, WifiOff
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface HospitalAuth {
+    token: string;
     id: string;
     name: string;
     email: string;
+    userId: string;
+    role: string;
+    hospitalId: string;
     loggedInAt: string;
 }
 
@@ -24,52 +28,134 @@ interface SupplyData {
     lastUpdated: string;
 }
 
-const DEFAULT_SUPPLY: SupplyData = {
+const EMPTY_SUPPLY: SupplyData = {
     beds: {
-        general: { total: 50, available: 12 },
-        icu: { total: 10, available: 4 },
-        ventilator: { total: 5, available: 1 },
+        general: { total: 0, available: 0 },
+        icu: { total: 0, available: 0 },
+        ventilator: { total: 0, available: 0 },
     },
-    oxygen: { cylinders: 30, available: 22, litersPerMin: 500 },
-    blood: { "A+": 12, "A-": 3, "B+": 8, "B-": 2, "AB+": 4, "AB-": 1, "O+": 15, "O-": 6 },
+    oxygen: { cylinders: 0, available: 0, litersPerMin: 0 },
+    blood: { "A+": 0, "A-": 0, "B+": 0, "B-": 0, "AB+": 0, "AB-": 0, "O+": 0, "O-": 0 },
     lastUpdated: new Date().toISOString(),
 };
 
 export default function HospitalDashboard() {
     const router = useRouter();
     const [auth, setAuth] = useState<HospitalAuth | null>(null);
-    const [supply, setSupply] = useState<SupplyData>(DEFAULT_SUPPLY);
+    const [supply, setSupply] = useState<SupplyData>(EMPTY_SUPPLY);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState("");
+    const [saveError, setSaveError] = useState("");
     const [activeTab, setActiveTab] = useState<"overview" | "beds" | "blood" | "oxygen">("overview");
 
+    // Load auth from sessionStorage and fetch supply data from API
     useEffect(() => {
         const stored = sessionStorage.getItem("hospital-auth");
         if (!stored) {
             router.push("/login");
             return;
         }
-        const parsed = JSON.parse(stored) as HospitalAuth;
-        setAuth(parsed);
 
-        // Load saved supply data for this hospital
-        const savedData = localStorage.getItem(`supply-${parsed.id}`);
-        if (savedData) {
-            setSupply(JSON.parse(savedData));
+        let parsed: HospitalAuth;
+        try {
+            parsed = JSON.parse(stored) as HospitalAuth;
+        } catch {
+            sessionStorage.removeItem("hospital-auth");
+            router.push("/login");
+            return;
+        }
+
+        if (!parsed.token || !parsed.hospitalId) {
+            sessionStorage.removeItem("hospital-auth");
+            router.push("/login");
+            return;
+        }
+
+        setAuth(parsed);
+    }, [router]);
+
+    const fetchSupply = useCallback(async (authData: HospitalAuth) => {
+        setLoading(true);
+        setFetchError("");
+        try {
+            const res = await fetch(`/api/hospitals/${authData.hospitalId}/supply`, {
+                headers: { Authorization: `Bearer ${authData.token}` },
+            });
+
+            if (res.status === 401) {
+                sessionStorage.removeItem("hospital-auth");
+                router.push("/login");
+                return;
+            }
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || "Failed to load supply data");
+            }
+
+            const data = await res.json();
+            // Merge with EMPTY_SUPPLY to ensure all blood groups exist
+            setSupply({
+                ...EMPTY_SUPPLY,
+                ...data,
+                blood: { ...EMPTY_SUPPLY.blood, ...(data.blood || {}) },
+            });
+        } catch (err: any) {
+            console.error("Failed to load supply data:", err);
+            setFetchError(err.message || "Failed to load data from server");
+        } finally {
+            setLoading(false);
         }
     }, [router]);
+
+    useEffect(() => {
+        if (auth) {
+            fetchSupply(auth);
+        }
+    }, [auth, fetchSupply]);
 
     const handleSave = async () => {
         if (!auth) return;
         setSaving(true);
-        // Simulate API save
-        await new Promise((r) => setTimeout(r, 800));
-        const updated = { ...supply, lastUpdated: new Date().toISOString() };
-        setSupply(updated);
-        localStorage.setItem(`supply-${auth.id}`, JSON.stringify(updated));
-        setSaving(false);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+        setSaveError("");
+
+        try {
+            const res = await fetch(`/api/hospitals/${auth.hospitalId}/supply`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${auth.token}`,
+                },
+                body: JSON.stringify({
+                    beds: supply.beds,
+                    oxygen: supply.oxygen,
+                    blood: supply.blood,
+                }),
+            });
+
+            if (res.status === 401) {
+                sessionStorage.removeItem("hospital-auth");
+                router.push("/login");
+                return;
+            }
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || "Failed to save");
+            }
+
+            setSupply((prev) => ({ ...prev, lastUpdated: new Date().toISOString() }));
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+        } catch (err: any) {
+            console.error("Save failed:", err);
+            setSaveError(err.message || "Save failed. Please try again.");
+            setTimeout(() => setSaveError(""), 5000);
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleLogout = () => {
@@ -80,7 +166,6 @@ export default function HospitalDashboard() {
     const updateBed = (type: "general" | "icu" | "ventilator", field: "total" | "available", delta: number) => {
         setSupply((prev) => {
             const newVal = Math.max(0, prev.beds[type][field] + delta);
-            // available can't exceed total
             const safeVal = field === "available" ? Math.min(newVal, prev.beds[type].total) : newVal;
             return {
                 ...prev,
@@ -106,10 +191,35 @@ export default function HospitalDashboard() {
         }));
     };
 
-    if (!auth) {
+    if (!auth || loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className="min-h-screen flex flex-col items-center justify-center gap-3">
                 <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                <p className="text-sm text-text-gray">Loading dashboard...</p>
+            </div>
+        );
+    }
+
+    if (fetchError) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
+                <WifiOff className="w-12 h-12 text-red-300" />
+                <h2 className="text-lg font-bold">Failed to Load Dashboard</h2>
+                <p className="text-sm text-text-gray text-center max-w-md">{fetchError}</p>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => fetchSupply(auth)}
+                        className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
+                    >
+                        Retry
+                    </button>
+                    <button
+                        onClick={handleLogout}
+                        className="px-6 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-text-gray hover:text-red-500 transition-colors"
+                    >
+                        Logout
+                    </button>
+                </div>
             </div>
         );
     }
@@ -141,6 +251,9 @@ export default function HospitalDashboard() {
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
+                            {saveError && (
+                                <span className="text-xs text-red-500 font-medium max-w-[200px] truncate">{saveError}</span>
+                            )}
                             <button
                                 onClick={handleSave}
                                 disabled={saving}
@@ -196,7 +309,6 @@ export default function HospitalDashboard() {
                 {/* Overview Tab */}
                 {activeTab === "overview" && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                        {/* Stats Cards */}
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                             <StatCard label="Total Beds" value={totalBeds} sub={`${availableBeds} available`} icon={Bed} color="blue" />
                             <StatCard label="ICU Beds" value={supply.beds.icu.available} sub={`of ${supply.beds.icu.total} total`} icon={ShieldCheck} color="indigo" />
@@ -204,7 +316,6 @@ export default function HospitalDashboard() {
                             <StatCard label="Oxygen" value={supply.oxygen.available} sub={`of ${supply.oxygen.cylinders} cylinders`} icon={Wind} color="teal" />
                         </div>
 
-                        {/* Quick Summary */}
                         <div className="grid lg:grid-cols-2 gap-6">
                             <div className="bg-white rounded-3xl p-6 shadow-soft border border-slate-100">
                                 <h3 className="font-bold text-lg mb-4">Bed Availability</h3>

@@ -1,241 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { Search, MapPin, Filter, List, Grid2X2, Compass, X } from "lucide-react";
+import React, { useState, useMemo, useEffect } from "react";
+import { Search, MapPin, Filter, List, Grid2X2, Compass, X, RefreshCw, WifiOff, Loader2 } from "lucide-react";
 import HospitalCardComponent, { Hospital } from "@/components/HospitalCard";
 import { cn } from "@/lib/utils";
-
-const mockHospitals: Hospital[] = [
-    {
-        id: "1",
-        name: "City Care Super Specialty",
-        address: "Block B, Greater Kailash, New Delhi",
-        city: "New Delhi",
-        lat: 28.5482,
-        lng: 77.2341,
-        distance: "2.4 km",
-        distanceKm: 2.4,
-        contact: "+91 9876543210",
-        beds: {
-            general: { total: 50, available: 12 },
-            icu: { total: 10, available: 4 },
-            ventilator: { total: 5, available: 1 },
-        },
-        oxygen: true,
-        blood: ["A+", "B+", "O-", "AB+"],
-        isVerified: true,
-    },
-    {
-        id: "2",
-        name: "St. Mary Medical Center",
-        address: "Saket Institutional Area, New Delhi",
-        city: "New Delhi",
-        lat: 28.5245,
-        lng: 77.2100,
-        distance: "4.1 km",
-        distanceKm: 4.1,
-        contact: "+91 8876543211",
-        beds: {
-            general: { total: 100, available: 45 },
-            icu: { total: 20, available: 2 },
-            ventilator: { total: 8, available: 0 },
-        },
-        oxygen: true,
-        blood: ["O+", "A-", "B-"],
-        isVerified: true,
-    },
-    {
-        id: "3",
-        name: "Apollo Multispecialty",
-        address: "Jasola Vihar, New Delhi",
-        city: "New Delhi",
-        lat: 28.5367,
-        lng: 77.2842,
-        distance: "5.8 km",
-        distanceKm: 5.8,
-        contact: "+91 7776543212",
-        beds: {
-            general: { total: 120, available: 8 },
-            icu: { total: 15, available: 0 },
-            ventilator: { total: 10, available: 2 },
-        },
-        oxygen: false,
-        blood: ["AB-", "O+", "A+"],
-        isVerified: false,
-    },
-    {
-        id: "4",
-        name: "Metro Hospital & Heart Inst.",
-        address: "Lajpat Nagar, New Delhi",
-        city: "New Delhi",
-        lat: 28.5672,
-        lng: 77.2435,
-        distance: "1.2 km",
-        distanceKm: 1.2,
-        contact: "+91 6676543213",
-        beds: {
-            general: { total: 40, available: 15 },
-            icu: { total: 8, available: 3 },
-            ventilator: { total: 4, available: 1 },
-        },
-        oxygen: true,
-        blood: ["B+", "O-"],
-        isVerified: true,
-    },
-    {
-        id: "5",
-        name: "Fortis Heart & Vascular Inst.",
-        address: "Okhla, New Delhi",
-        city: "New Delhi",
-        lat: 28.5574,
-        lng: 77.2831,
-        distance: "6.5 km",
-        distanceKm: 6.5,
-        contact: "+91 9988776655",
-        beds: {
-            general: { total: 80, available: 20 },
-            icu: { total: 12, available: 5 },
-            ventilator: { total: 6, available: 3 },
-        },
-        oxygen: true,
-        blood: ["A+", "O+", "B+", "AB+"],
-        isVerified: true,
-    },
-    {
-        id: "6",
-        name: "Max Super Specialty Hospital",
-        address: "Saket, New Delhi",
-        city: "New Delhi",
-        lat: 28.5283,
-        lng: 77.2185,
-        distance: "3.7 km",
-        distanceKm: 3.7,
-        contact: "+91 8877665544",
-        beds: {
-            general: { total: 150, available: 0 },
-            icu: { total: 25, available: 1 },
-            ventilator: { total: 12, available: 0 },
-        },
-        oxygen: true,
-        blood: ["O-", "A-", "AB-"],
-        isVerified: true,
-    },
-    {
-        id: "7",
-        name: "Lilavati Hospital & Research Centre",
-        address: "Bandra West, Mumbai",
-        city: "Mumbai",
-        lat: 19.0514,
-        lng: 72.8258,
-        distance: "2.1 km",
-        distanceKm: 2.1,
-        contact: "+91 2226751000",
-        beds: {
-            general: { total: 200, available: 45 },
-            icu: { total: 30, available: 8 },
-            ventilator: { total: 15, available: 4 },
-        },
-        oxygen: true,
-        blood: ["A+", "B+", "O-", "AB+", "O+"],
-        isVerified: true,
-    },
-    {
-        id: "8",
-        name: "Narayana Health City",
-        address: "Bommasandra Industrial Area, Bangalore",
-        city: "Bangalore",
-        lat: 12.8267,
-        lng: 77.6833,
-        distance: "12.4 km",
-        distanceKm: 12.4,
-        contact: "+91 8027832000",
-        beds: {
-            general: { total: 300, available: 85 },
-            icu: { total: 50, available: 12 },
-            ventilator: { total: 25, available: 6 },
-        },
-        oxygen: true,
-        blood: ["O+", "A+", "B+", "AB-"],
-        isVerified: true,
-    },
-    {
-        id: "9",
-        name: "KIMS Hospital",
-        address: "Minister Road, Secunderabad, Hyderabad",
-        city: "Hyderabad",
-        lat: 17.4334,
-        lng: 78.4866,
-        distance: "4.8 km",
-        distanceKm: 4.8,
-        contact: "+91 4044885000",
-        beds: {
-            general: { total: 180, available: 32 },
-            icu: { total: 25, available: 5 },
-            ventilator: { total: 12, available: 2 },
-        },
-        oxygen: true,
-        blood: ["A+", "O+", "B-"],
-        isVerified: true,
-    },
-    {
-        id: "10",
-        name: "Medica Superspecialty Hospital",
-        address: "Mukundapur, Kolkata",
-        city: "Kolkata",
-        lat: 22.4848,
-        lng: 88.4014,
-        distance: "8.2 km",
-        distanceKm: 8.2,
-        contact: "+91 3366520000",
-        beds: {
-            general: { total: 120, available: 18 },
-            icu: { total: 15, available: 2 },
-            ventilator: { total: 8, available: 0 },
-        },
-        oxygen: true,
-        blood: ["B+", "O+", "A-"],
-        isVerified: true,
-    },
-    {
-        id: "11",
-        name: "Ruby Hall Clinic",
-        address: "Sassoon Road, Pune",
-        city: "Pune",
-        lat: 18.5302,
-        lng: 73.8753,
-        distance: "3.5 km",
-        distanceKm: 3.5,
-        contact: "+91 2026163391",
-        beds: {
-            general: { total: 150, available: 22 },
-            icu: { total: 20, available: 4 },
-            ventilator: { total: 10, available: 3 },
-        },
-        oxygen: true,
-        blood: ["O-", "A+", "B+"],
-        isVerified: true,
-    },
-    {
-        id: "12",
-        name: "PGIMER",
-        address: "Sector 12, Chandigarh",
-        city: "Chandigarh",
-        lat: 30.7672,
-        lng: 76.7766,
-        distance: "5.1 km",
-        distanceKm: 5.1,
-        contact: "+91 1722746018",
-        beds: {
-            general: { total: 250, available: 15 },
-            icu: { total: 40, available: 3 },
-            ventilator: { total: 20, available: 1 },
-        },
-        oxygen: true,
-        blood: ["AB+", "O+", "B-"],
-        isVerified: true,
-    },
-];
-
 
 // Haversine formula to calculate distance between two coordinates
 function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -254,6 +22,39 @@ function deg2rad(deg: number) {
     return deg * (Math.PI / 180);
 }
 
+// Transform API response from DB shape → Hospital card shape
+function transformHospital(h: any): Hospital {
+    return {
+        id: h.id,
+        name: h.name,
+        address: h.address,
+        city: h.city,
+        lat: h.latitude ?? 0,
+        lng: h.longitude ?? 0,
+        distance: "—",
+        distanceKm: 0,
+        contact: h.contact_number,
+        beds: {
+            general: {
+                total: h.beds?.total_general ?? 0,
+                available: h.beds?.available_general ?? 0,
+            },
+            icu: {
+                total: h.beds?.total_icu ?? 0,
+                available: h.beds?.available_icu ?? 0,
+            },
+            ventilator: {
+                total: h.beds?.total_ventilator ?? 0,
+                available: h.beds?.available_ventilator ?? 0,
+            },
+        },
+        oxygen: (h.oxygen?.cylinders_available ?? 0) > 0,
+        blood: (h.blood ?? []).filter((b: any) => b.units_available > 0).map((b: any) => b.blood_group),
+        isVerified: h.is_verified ?? false,
+        lastUpdated: h.beds?.last_updated || h.updated_at,
+    };
+}
+
 
 export default function HospitalsPage() {
     const [search, setSearch] = useState("");
@@ -261,6 +62,11 @@ export default function HospitalsPage() {
     const [locationFetching, setLocationFetching] = useState(false);
     const [locationStatus, setLocationStatus] = useState("");
     const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+    // Data fetching state
+    const [hospitals, setHospitals] = useState<Hospital[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [fetchError, setFetchError] = useState("");
 
     // Filter states
     const [userCoords, setUserCoords] = useState<{ lat: number, lng: number } | null>(null);
@@ -280,6 +86,30 @@ export default function HospitalsPage() {
 
     // Selected hospital for detail modal
     const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
+
+    // Fetch hospitals from the database API
+    const fetchHospitals = async () => {
+        setIsLoading(true);
+        setFetchError("");
+        try {
+            const res = await fetch("/api/hospitals");
+            if (!res.ok) {
+                throw new Error("Failed to fetch hospitals");
+            }
+            const data = await res.json();
+            const transformed = (Array.isArray(data) ? data : []).map(transformHospital);
+            setHospitals(transformed);
+        } catch (err: any) {
+            console.error("Failed to load hospitals:", err);
+            setFetchError(err.message || "Failed to load hospitals");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchHospitals();
+    }, []);
 
     const handleLocationClick = () => {
         if (!navigator.geolocation) {
@@ -303,11 +133,11 @@ export default function HospitalsPage() {
                     const data = await response.json();
                     if (Array.isArray(data)) {
                         setExternalHospitals(data);
-                        setLocationStatus(`📍 Successfully found ${data.length} hospitals nearby!`);
+                        setLocationStatus(`📍 Successfully found ${data.length} nearby hospitals from Google!`);
                     }
                 } catch (err) {
                     console.error("External fetch failed:", err);
-                    setLocationStatus("📍 Located, but failed to fetch live data. Using local records.");
+                    setLocationStatus("📍 Located. Showing distances based on your location.");
                 } finally {
                     setIsFetchingExternal(false);
                 }
@@ -333,7 +163,7 @@ export default function HospitalsPage() {
 
     // Filtered and Sorted hospitals
     const filteredHospitals = useMemo(() => {
-        const combinedBase = [...mockHospitals, ...externalHospitals];
+        const combinedBase = [...hospitals, ...externalHospitals];
         
         const hospitalsWithRealDist = combinedBase.map(h => {
             if (userCoords) {
@@ -353,13 +183,12 @@ export default function HospitalsPage() {
             }
             
             // City-level "Wider Range" logic
-            // If search is a city name and widerRange is true, we show all in that city regardless of distance
-            const isCitySearch = search && mockHospitals.some(mh => mh.city.toLowerCase() === search.toLowerCase());
+            const isCitySearch = search && hospitals.some(mh => mh.city.toLowerCase() === search.toLowerCase());
             if (isCitySearch && widerRange && h.city.toLowerCase() === search.toLowerCase()) {
                 // Skip distance filter if it's a city search with wider range
             } else {
-                // Distance filter
-                if (h.distanceKm > maxDistance) return false;
+                // Distance filter — only if user location is available
+                if (userCoords && h.distanceKm > maxDistance) return false;
             }
 
             // Availability filters
@@ -379,7 +208,7 @@ export default function HospitalsPage() {
         }
 
         return filtered;
-    }, [search, filters, bloodGroup, maxDistance, userCoords, widerRange]);
+    }, [search, filters, bloodGroup, maxDistance, userCoords, widerRange, hospitals, externalHospitals]);
 
     const activeFilterCount = Object.values(filters).filter(Boolean).length + (bloodGroup ? 1 : 0) + (maxDistance < 50 ? 1 : 0);
 
@@ -463,11 +292,79 @@ export default function HospitalsPage() {
         </div>
     );
 
+    // Loading skeleton
+    if (isLoading) {
+        return (
+            <div className="bg-transparent min-h-screen">
+                <div className="bg-white/70 backdrop-blur-lg border-b border-slate-100 py-10 pt-20">
+                    <div className="container-custom">
+                        <h1 className="text-3xl font-bold mb-6">Find Hospitals Near You</h1>
+                        <div className="flex items-center gap-3 text-text-gray">
+                            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                            <span className="text-sm">Loading hospitals from database...</span>
+                        </div>
+                    </div>
+                </div>
+                <div className="container-custom py-10">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                            <div key={i} className="bg-white rounded-3xl p-6 shadow-soft border border-slate-100 animate-pulse">
+                                <div className="h-5 bg-slate-200 rounded-lg w-3/4 mb-3" />
+                                <div className="h-3 bg-slate-100 rounded w-1/2 mb-6" />
+                                <div className="grid grid-cols-3 gap-3 mb-6">
+                                    <div className="h-20 bg-slate-100 rounded-2xl" />
+                                    <div className="h-20 bg-slate-100 rounded-2xl" />
+                                    <div className="h-20 bg-slate-100 rounded-2xl" />
+                                </div>
+                                <div className="h-8 bg-slate-100 rounded-xl" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Error state
+    if (fetchError) {
+        return (
+            <div className="bg-transparent min-h-screen">
+                <div className="bg-white/70 backdrop-blur-lg border-b border-slate-100 py-10 pt-20">
+                    <div className="container-custom">
+                        <h1 className="text-3xl font-bold mb-6">Find Hospitals Near You</h1>
+                    </div>
+                </div>
+                <div className="container-custom py-20 flex flex-col items-center justify-center gap-4">
+                    <WifiOff className="w-16 h-16 text-slate-300" />
+                    <h2 className="text-xl font-bold">Failed to Load Hospitals</h2>
+                    <p className="text-sm text-text-gray text-center max-w-md">{fetchError}</p>
+                    <button
+                        onClick={fetchHospitals}
+                        className="px-6 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="bg-transparent min-h-screen">
             <div className="bg-white/70 backdrop-blur-lg border-b border-slate-100 py-10 pt-20">
                 <div className="container-custom">
-                    <h1 className="text-3xl font-bold mb-6">Find Hospitals Near You</h1>
+                    <div className="flex items-center justify-between mb-6">
+                        <h1 className="text-3xl font-bold">Find Hospitals Near You</h1>
+                        <button
+                            onClick={fetchHospitals}
+                            className="px-4 py-2 text-xs font-bold text-primary hover:text-blue-700 transition-colors flex items-center gap-1.5 bg-blue-50 rounded-xl border border-blue-100"
+                            title="Refresh hospital data"
+                        >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Refresh
+                        </button>
+                    </div>
 
                     <div className="flex flex-col lg:flex-row gap-4 relative z-10">
                         <div className="flex-1 relative">
@@ -575,7 +472,8 @@ export default function HospitalsPage() {
                     <main className="lg:col-span-9">
                         <div className="flex items-center justify-between mb-8">
                             <p className="text-sm text-text-gray">
-                                Showing <span className="font-bold text-text-dark">{filteredHospitals.length}</span> hospital{filteredHospitals.length !== 1 ? "s" : ""} near you
+                                Showing <span className="font-bold text-text-dark">{filteredHospitals.length}</span> hospital{filteredHospitals.length !== 1 ? "s" : ""}{" "}
+                                {hospitals.length > 0 && <span className="text-xs">(from database)</span>}
                                 {activeFilterCount > 0 && (
                                     <span className="ml-2 text-primary text-xs font-bold">
                                         ({activeFilterCount} filter{activeFilterCount > 1 ? "s" : ""} active)
@@ -610,7 +508,11 @@ export default function HospitalsPage() {
                             <div className="text-center py-20 bg-white rounded-3xl border border-slate-100">
                                 <Search className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                                 <h3 className="text-lg font-bold mb-2">No hospitals found</h3>
-                                <p className="text-text-gray text-sm mb-6">Try adjusting your search or filters</p>
+                                <p className="text-text-gray text-sm mb-6">
+                                    {hospitals.length === 0
+                                        ? "No hospitals are registered yet. Run the seed script to add demo data."
+                                        : "Try adjusting your search or filters"}
+                                </p>
                                 <button
                                     onClick={handleResetFilters}
                                     className="px-6 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
@@ -665,11 +567,15 @@ export default function HospitalsPage() {
                         <div className="mb-6">
                             <h4 className="font-bold text-sm text-text-dark mb-3">Blood Groups Available</h4>
                             <div className="flex flex-wrap gap-2">
-                                {selectedHospital.blood.map((group) => (
-                                    <span key={group} className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-100 rounded-full text-xs font-bold">
-                                        {group}
-                                    </span>
-                                ))}
+                                {selectedHospital.blood.length > 0 ? (
+                                    selectedHospital.blood.map((group) => (
+                                        <span key={group} className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-100 rounded-full text-xs font-bold">
+                                            {group}
+                                        </span>
+                                    ))
+                                ) : (
+                                    <span className="text-sm text-text-gray">No blood group data available</span>
+                                )}
                             </div>
                         </div>
 
@@ -680,6 +586,13 @@ export default function HospitalsPage() {
                                 {selectedHospital.oxygen ? "Available" : "Not Available"}
                             </span>
                         </div>
+
+                        {/* Last Updated timestamp */}
+                        {(selectedHospital as any).lastUpdated && (
+                            <div className="mb-6 text-xs text-text-gray">
+                                Last updated: {new Date((selectedHospital as any).lastUpdated).toLocaleString()}
+                            </div>
+                        )}
 
                         <div className="flex gap-3">
                             <button
